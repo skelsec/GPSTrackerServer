@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="UTF-8">
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCbh6_Jhpzj13qeM6Ujw_vjJZOK85o3SsI&callback=initMap"></script>
+  <script type="text/javascript" src="/scritps/gpstracker.js"></script>
+  
+  <script>
+  window.onload = function(){
+	initMap();
+	refreshRoutePath();
+	};
+  </script>
+  
+    <style>
+      #map {
+        height: 400px;
+        width: 100%;
+       }
+    </style>
+  </head>
+  <body>
+	<form name="dataform" action="javascript:refreshRoutePath()">
+		Car name:   <input type='text' id='client'    value="testgps"   /><br>
+		Start date: <input type='date' id='startdate' value="2017-06-17"/><br>
+		End date:   <input type='date' id='enddate'   value="2017-06-20"/><br>
+		Interval:   <input type='text' id='interval'  value="100"       />
+		<input type="submit" value="Submit">
+	</form>
+  
+  
+    <h3>Car path in the given timeframe</h3>
+    <div id="map"></div>
+    
+
+	
+  
+  </body>
+</html>
