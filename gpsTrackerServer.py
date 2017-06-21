@@ -8,7 +8,7 @@ import gzip
 import cStringIO
 import datetime
 
-from app.gpsutils import routefilter
+from gpsutils import routefilter
 from dateutil.parser import parse
 from gpsDB import gpsposition, gpsjsondata
 
