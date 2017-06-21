@@ -8,6 +8,7 @@ import gzip
 import cStringIO
 import datetime
 
+from gpsutils.gpsutils import routefilter
 from dateutil.parser import parse
 from gpsDB import gpsposition, gpsjsondata
 
@@ -91,10 +92,16 @@ class GetLatestPosition(Resource):
 		return GPSDataResponse(t).toDict(), 200
 
 class GetPosition(Resource):
-	def get(self, client_name, start_date, end_date, interval = 10):
+	def get(self, client_name, start_date, end_date, interval = 1):
+		### TODO!!!
+		interval = 1
+		#########
+		
 		start = parse(start_date)
 		end   = parse(end_date)
 		posList = []
+		rawPosList = []
+		filteredPosList = []
 		query = text(	"SELECT * FROM ("
 				" SELECT @row := @row +1 AS rownum, gpsposition.*"
 				" FROM ( SELECT @row :=0) r, gpsposition WHERE gps_mode <> 1 AND gps_time BETWEEN :start AND :end) ranked"
@@ -110,9 +117,15 @@ class GetPosition(Resource):
 			temp['speed'] = str(gpspos.gps_speed)
 			temp['time'] = gpspos.gps_time.isoformat()
 			posList.append(temp)
+			rawPosList.append(float(temp['lat']), float(temp['lng']))
+			
+		for pos in routefilter(rawPosList):
+			filteredPosList.append(pos)
+			
 		print len(posList)
+		print len(filteredPosList)
 
-		return GPSDataResponse(posList).toDict(), 200
+		return GPSDataResponse(filteredPosList).toDict(), 200
 
 @app.route('/scritps/<path:path>')
 def serve_page(path):
