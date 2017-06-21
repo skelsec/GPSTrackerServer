@@ -45,7 +45,18 @@ class gpsposition(db.Model):
 		self.client_name	= client_name
 		self.clinet_ip		= client_ip
 		self.upload_time	= upload_time
-		
+
+	def toDict(self):
+		temp = {}
+		temp['lat'] = str(self.gps_latitude)
+		temp['lng'] = str(self.gps_longitude)
+		temp['alt'] = str(self.gps_altitude)
+		temp['speed'] = str(self.gps_speed)
+		temp['time'] = self.gps_time.isoformat()
+		temp['mode'] = str(self.gps_mode)
+		return temp
+
+
 class gpsjsondata(db.Model):
 	id 				= db.Column(db.Integer, primary_key = True)
 	client_name		= db.Column(db.String(1024) , index = True)

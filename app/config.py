@@ -1,6 +1,5 @@
 from pathlib2 import Path, PurePath
 
-
 p = Path(__file__)
 basedir = str(p.parents[1])
 
@@ -11,7 +10,7 @@ WEBPAGE_DIR =str(pr)
 SCRIPTS_DIR = str(pr.joinpath('scripts'))
 
 
-
+LOGLEVEL = 'DEBUG'
 HOST='0.0.0.0'
 PORT=8080
 SQLALCHEMY_DATABASE_URI = 'mysql://gps:gpsTrackerP@ssW0rd!@localhost:3306/gps'

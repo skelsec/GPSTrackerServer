@@ -1,9 +1,10 @@
+import logging
+import logging.handlers
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Resource, Api
 from flask_cors import CORS
 from pathlib2 import Path, PurePath
-
 
 p = Path(__file__)
 basedir = str(p.parents[1])
@@ -14,8 +15,25 @@ static_folder =str(pr.joinpath('static'))
 
 app = Flask(__name__, static_folder = static_folder ,static_url_path='')
 app.config.from_pyfile('config.py')
+
+#### LOGGING SETUP
+handler = logging.handlers.SysLogHandler(address = '/dev/log')
+formatter = logging.Formatter('%(module)s.%(funcName)s: %(message)s')
+handler.setFormatter(formatter)
+
+if app.config['LOGLEVEL'] == 'DEBUG' or app.debug:
+	handler.setLevel(logging.DEBUG)
+	app.logger.setLevel(logging.DEBUG)
+elif app.config['LOGLEVEL'] == 'INFO':
+	handler.setLevel(logging.INFO)
+	app.logger.setLevel(logging.INFO)
+
+app.logger.addHandler(handler)
+##########################
+###### cross-origin HTTP request settings
 CORS(app)
-print app.config
+##########################
+
 api = Api(app)
 db = SQLAlchemy(app)
 
