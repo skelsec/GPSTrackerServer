@@ -7,6 +7,10 @@
   
   <script>
   window.onload = function(){
+	var trackername =  location.hash.substring(1);;
+	document.getElementById('tracker').value = trackername;
+	//todo: if carname is empty then look for one tracker name in the DB and show the position of that
+	
 	initMap();
 	refreshLatestCoordinate();
 	};
@@ -21,7 +25,7 @@
   </head>
   <body>
 	<form name="dataform" action="javascript:refreshLatestCoordinate()">
-		Car name:   <input type='text' id='client'    value="testgps"   /><br>
+		Tracker name:   <input type='text' id='tracker' value=""   /><br>
 		<input type="submit" value="Submit">
 	</form>
 	<br>

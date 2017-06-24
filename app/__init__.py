@@ -1,9 +1,12 @@
 import logging
 import logging.handlers
 from flask import Flask
+from flask_security import Security, SQLAlchemyUserDatastore
+
 from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Resource, Api
 from flask_cors import CORS
+from flask_mail import Mail
 from pathlib2 import Path, PurePath
 
 p = Path(__file__)
@@ -11,9 +14,9 @@ basedir = str(p.parents[1])
 
 
 pr = PurePath(basedir)
-static_folder =str(pr.joinpath('static'))
+template_dir =str(pr.joinpath('templates'))
 
-app = Flask(__name__, static_folder = static_folder ,static_url_path='')
+app = Flask(__name__, template_folder=template_dir)
 app.config.from_pyfile('config.py')
 
 #### LOGGING SETUP
@@ -29,17 +32,41 @@ elif app.config['LOGLEVEL'] == 'INFO':
 	app.logger.setLevel(logging.INFO)
 
 app.logger.addHandler(handler)
-##########################
-###### cross-origin HTTP request settings
-CORS(app)
-##########################
+app.logger.warning('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
 
-api = Api(app)
-db = SQLAlchemy(app)
+try:
+	##########################
+	###### cross-origin HTTP request settings
+	CORS(app)
+	##########################
+	mail = Mail(app)
+	api = Api(app)
+	db = SQLAlchemy(app)
 
-from gpsTrackerServer import ClientReciever, GetLatestPosition, GetPosition
+	from gpsDB import gpsposition, gpsjsondata, gpstracker, User, Role
+
+	user_datastore = SQLAlchemyUserDatastore(db, User, Role)
+	security = Security(app, user_datastore)
+	
+	@app.before_first_request
+	def seed():
+		if not app.config['RESET_APP']:
+			return
+				
+		print 'Creating DB!'
+		db.create_all()
+		user_datastore.create_role(name='admin')
+		user_datastore.create_user(username='skelsec', email='haha@skelsec.com',
+						password='supersecret_admin_1', roles=['admin'])
+
+	from gpsTrackerServer import GPSTracker, GPSPosition, GPSTrackerConfig
 
 
-api.add_resource(ClientReciever, '/gpstracker/upload/<string:client_name>')
-api.add_resource(GetLatestPosition, '/gpstracker/position/<string:client_name>/latest')
-api.add_resource(GetPosition, '/gpstracker/position/<string:client_name>/<string:start_date>/<string:end_date>/<int:interval>')
+	api.add_resource(GPSTracker, '/gpstracker')
+	api.add_resource(GPSTrackerConfig, '/gpstrackerconfig/<string:trackerid>')
+	api.add_resource(GPSPosition, '/gpsposition','/gpsposition/<string:tracker_name>', '/gpsposition/<string:tracker_name>/<string:start_date>/<string:end_date>')
+
+	# Create a user to test with
+except Exception as e:
+	app.logger.exception('a')
+

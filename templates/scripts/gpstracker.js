@@ -3,8 +3,8 @@ var map = '';
 var markersArray = [];
 var flightPathArray = [];
 
-var POSITION_API_URL = "/gpstracker/position/";
-var POSITION_API_URL_LATEST = "/latest";
+var POSITION_API_URL = "/gpsposition";
+var TRACKER_API_URL = "/gpstracker";
 
 
 function initMap() {
@@ -26,11 +26,32 @@ function getBaseURL(){
 	
 }
 
+function addGPSTracker(){
+	var http = new XMLHttpRequest();
+	var URLbase = getBaseURL();
+	var url = URLbase + TRACKER_API_URL ;
+	
+	var params = "trigger!";
+	http.open("POST", url, true);
+
+	//Send the proper header information along with the request
+	http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+
+	http.onreadystatechange = function() {//Call a function when the state changes.
+		if(http.readyState == 4 && http.status == 200) {
+			alert(http.responseText);
+		}
+	}
+	http.send(params);
+	
+	
+}
+
 
 function refreshLatestCoordinate(){
 	var URLbase = getBaseURL();
-	var client = document.getElementById('client').value;
-	var url = URLbase + POSITION_API_URL + client + POSITION_API_URL_LATEST;
+	var tracker = document.getElementById('tracker').value;
+	var url = URLbase + POSITION_API_URL + '/' + tracker;
 	
 	getGPSData(url, GPSTrackerPlotLatest);
 
@@ -38,13 +59,13 @@ function refreshLatestCoordinate(){
 
 function refreshRoutePath(){
 	var URLbase = getBaseURL();
-	var client = document.getElementById('client').value;
+	var tracker = document.getElementById('tracker').value;
 	var startdate = document.getElementById('startdate').value;
 	var enddate = document.getElementById('enddate').value;
 	var interval = document.getElementById('interval').value;
 
 	
-	var url = URLbase + POSITION_API_URL + client + '/' + startdate + '/' + enddate +'/'+interval;
+	var url = URLbase + POSITION_API_URL + '/' + tracker + '/' + startdate + '/' + enddate +'/'+interval;
 	
 	getGPSData(url, GPSTrackerPlotRoute);
 }
@@ -155,34 +176,6 @@ function clearMarkers() {
 function clearFlightPath() {
 		while(flightPathArray.length) { flightPathArray.pop().setMap(null); }
 	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

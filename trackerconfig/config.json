@@ -1,0 +1,32 @@
+{
+	"UPLOADER": 
+	{
+		"SSL_VERIFY": false,
+		"GPSTRACKER_UPLOAD_API": "/gpsposition",
+		"TRACKER_NAME": "",
+		"UPLOAD_URL": "https://XXXX/",
+		"TRACKER_CERT_FILE": "certs/tarcker.pem",
+		"TRACKER_KEY_FILE": "certs/tarcker.key",
+		"TIMEOUT": 20
+	}, 
+	"REPORTER": 
+	{
+		"FAILED_UPLOAD_DIR": "gpsdata/failed", 
+		"GPSDATA_DIR": "gpsdata", 
+		"REUPLOADER_FREQ": 15, 
+		"UPLOADER_FREQ": 30, 
+		"WRITE_GPSDATA_FILE": false
+	},
+	"LOGGER":
+	{
+		"NAME": "GPSTrackerLogger",
+		"LOGLEVEL": "INFO"
+	},
+	"BOOTSTRAP":
+	{
+		"BOOTSTRAP_CODE": "",
+		"BOOTSTRAP_EMAIL": "",
+		"BOOTSTRAP_URL": ""
+	}
+	
+}
