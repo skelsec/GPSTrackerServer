@@ -66,7 +66,7 @@ class BootstrapResponse(JsonResponse):
 		t['cert'] = cert
 		t['key']  = key
 		JsonResponse.__init__(self,'ok',t)
-		
+
 class TrackerCert():
 	def __init__(self, certfile, keyfile, validity = 365*24*60*60, key_size = 2048, digest_algo = "sha256"):
 		self.ca_cert_file = certfile
@@ -155,9 +155,9 @@ class TrackerCert():
 		
 
 class GPSTracker(Resource):
-	"""
+	'''
 	GET: gets GPSTracker info
-	"""
+	'''
 	
 	@login_required	
 	def get(self):
@@ -167,13 +167,13 @@ class GPSTracker(Resource):
 	
 	
 	
-	"""
+	'''
 	POST: creates a new tracker
 	This method creates a new tracker and generates an OTP for the Tracker device to use with bootstrap
 	input: user
 	output: bootstrap_code
 	
-	"""
+	'''
 	@login_required	
 	def post(self):
 		#tracker id is not known at this point, discard it
@@ -199,8 +199,8 @@ class GPSTracker(Resource):
 		
 		trackerconfig['BOOTSTRAP']["BOOTSTRAP_CODE"] = bootstrap_code
 		trackerconfig['BOOTSTRAP']["BOOTSTRAP_EMAIL"] = current_user.email
-		trackerconfig['BOOTSTRAP']["BOOTSTRAP_URL"] = app.config["SERVER_BASE_URL"] + 'gpstracker'
-		trackerconfig['UPLOADER']["UPLOAD_URL"] = app.config["SERVER_BASE_URL"]
+		trackerconfig['BOOTSTRAP']["BOOTSTRAP_URL"] = app.config["TRACKER_SERVER_BASE_URL"] + 'gpstracker'
+		trackerconfig['UPLOADER']["UPLOAD_URL"] = app.config["TRACKER_SERVER_BASE_URL"]
 		trackerconfig['UPLOADER']["TRACKER_NAME"] = tracker_name
 		
 		tc = json.dumps(trackerconfig)
@@ -216,11 +216,11 @@ class GPSTracker(Resource):
 		return TrackerRegisterSuccsess(bootstrap_code).toDict()
 		
 
-	"""
+	'''
 	PUT: bootstraps the GPSTracker
 	input: user_email and bootstrap_code
 	output: certificate and key signed for tracker_name
-	"""
+	'''
 	def put(self):
 		client_ip = getclientIP(request)
 		request_time = datetime.datetime.utcnow()
@@ -282,10 +282,10 @@ class GPSTracker(Resource):
 			
 		
 class GPSPosition(Resource):
-	"""
+	'''
 	POST: this is where the GPSTracker devices uploading the GPS Position data.
 	tracker_name: the name of the GPSTracker (which is in the CN filed of the SSL cert)
-	"""
+	'''
 	def post(self):
 		############## TODOTODO!!!!!!#############
 		#### implement CN name extraction and compare it to the tracker_name!!!!
@@ -335,10 +335,10 @@ class GPSPosition(Resource):
 
 		return OKResponse().toDict(), 200
 
-	"""
+	'''
 	GET with start and end date set: gets the GPS positional data in a formatted manner for the time period specified. Filtering will be applied here!
 	tracker_name: the name of the GPSTracker (which is in the CN filed of the SSL cert)
-	"""
+	'''
 	@login_required	
 	def get(self, tracker_name, start_date = '', end_date = ''):
 		try:
@@ -438,7 +438,7 @@ class GPSPosition(Resource):
 			
 class GPSTrackerConfig(Resource):
 	
-	@login_required	
+	#@login_required	
 	def get(self, trackerid):
 		#check if tracker belongs to the current user
 		if current_user.query.filter(User.trackers.any(id = trackerid)).count() == 0:
@@ -455,30 +455,7 @@ class GPSTrackerConfig(Resource):
 		
 		
 		return response
-
-@app.route('/scritps/<path:path>')
-def serve_page(path):
-	print path
-	return send_from_directory(app.config['SCRIPTS_DIR'], path)
-
-
-# Views
-@app.route('/')
-@login_required
-def home():
-	return render_template('index.html')
-
-@app.route('/gpstracker.html')
-@login_required
-def gpstrackerpage():
-	return render_template('gpstracker.html')
-
-@app.route('/gpslocation.html')
-@login_required	
-def gpslocationpage():
-	return render_template('gpslocation.html')
-	
-	
+"""
 @app.before_request
 def before():
 	# todo with request
@@ -493,5 +470,27 @@ def after(response):
 	app.logger.warning( response.get_data())
 	return response
 
+"""		
+# Views
+@app.route('/scritps/<path:path>')
+def serve_page(path):
+	print path
+	return send_from_directory(app.config['SCRIPTS_DIR'], path)
+
+@app.route('/', methods=['GET'])
+@login_required
+def home():
+	print 'home'
+	return render_template('index.html')
+
+@app.route('/gpstracker.html')
+@login_required
+def gpstrackerpage():
+	return render_template('gpstracker.html')
+
+@app.route('/gpslocation.html')
+@login_required	
+def gpslocationpage():
+	return render_template('gpslocation.html')
 
 	
