@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+
+{% block content %}
+  {%- if current_user.is_authenticated == false -%}
+  <div class="row" style="padding-top: 70px">
+	<div class="col-md-12">
+		Please <a href="/login">Login</a> or  <a href="/register">Register</a>  
+	</div>
+  </div>
+  {% else %}
+  
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCbh6_Jhpzj13qeM6Ujw_vjJZOK85o3SsI&callback=initMap"></script>
+  
+  
+    <script>
+	  window.onload = function(){
+		initMap();
+		refreshRouteTrackerID();
+		//refreshLatestCoordinates();
+		};
+	  </script>
+
+	<div class="container-fluid">
+	<div class="row" style="padding-top: 50px">
+	<div class="col-md-9 embed-responsive embed-responsive-16by9">
+			<div id="map" class="embed-responsive-item" style="border: 1px solid black"></div>
+
+	</div>
+		<div class="col-md-3">
+
+		<div class="panel panel-default">
+			<!-- Default panel contents -->
+			<div class="panel-heading">Tracker</div>
+			<div class="panel-body">
+				<div class='col-md-12'>
+				Tracker id
+					<div class="form-group">
+						<div>
+							<input type='text' class="form-control" id='input_tracker_id'/>
+						</div>
+					</div>
+				</div>	
+				<div class='col-md-12'>
+				Start
+					<div class="form-group">
+						<div class='input-group date' id='route_start_datetime'>
+							<input type='text' class="form-control" data-format="yyyy-MM-dd hh:mm:ss" id='route_start_datetime_text'/>
+							<span class="input-group-addon">
+								<span class="glyphicon glyphicon-calendar"/>
+							</span>
+						</div>
+					</div>
+				</div>	
+				<div class='col-md-12'>
+				End
+					<div class="form-group">
+						<div class='input-group date' id='route_end_datetime'>
+							<input type='text' class="form-control" data-date-end-date="0d" data-format="yyyy-MM-dd hh:mm:ss" id='route_end_datetime_text'/>
+							<span class="input-group-addon" >
+								<span class="glyphicon glyphicon-calendar"/>
+							</span>
+						</div>
+					</div>
+				</div>	
+				<input class="btn btn-primary btn-block" type="button" value="Do it" onclick="javascript:refreshRoutePath()">
+			</div>
+		</div>	
+		<div class="panel panel-default">	
+			<div class="panel-heading">Route information summary</div>
+			<div class="panel-body">
+				<table class="table">
+                    <tbody>
+                      <tr>
+                        <td>Total distance travelled:</td>
+                        <td>
+							<label id="summary_route_total_distance_travelled">0</label>
+						</td>
+                      </tr>
+                      <tr>
+                        <td>Time travelled:</td>
+                        <td>
+							<label id="summary_route_time_travelled">0</label>
+						</td>
+                      </tr>
+					  <tr>
+                        <td>Top Speed:</td>
+                        <td>
+							<label id="summary_route_max_speed">0</label>
+						</td>
+                      </tr>
+                       <tr>
+                        <td>Avg speed:</td>
+                        <td>
+							<label id="summary_route_avg_speed">0</label>
+						</td>
+                      </tr>
+                      <tr>
+                        <td>Top height:</td>
+                        <td>
+							<label id="summary_route_max_elev">0</label>
+						</td>
+                      </tr>
+                      <tr>
+                        <td>Min height:</td>
+                        <td>
+							<label id="summary_route_min_elev">0</label>
+						</td>
+                      </tr>
+                     
+                    </tbody>
+                  </table>
+			</div>
+
+		</div>
+
+		
+	</div>
+    </div>
+		<div class="row" style="padding-top: 20px">
+			<div class="col-md-12">
+				<div class="panel panel-default">	
+			<div class="panel-heading">Route information</div>
+			<div class="panel-body">
+			<div class="container">
+				<table class="table table-striped" id="routesegmentinfotable">
+                        <tbody>
+                      <tr>
+						<th>Color</th>
+                        <th>ID</th>
+                        <th>Total distance travelled</th>
+                        <th>Time travelled</th>
+                        <th>Top Speed</th>
+                        <th>Avg speed</th>
+                        <th>Top height</th>
+                        <th>Min height</th>
+						<th>Show</th>
+						<th>Download</th>
+
+                      </tr>
+                    </tbody>
+                  </table>
+			</div>
+			</div>
+
+		</div>
+			</div>
+			
+		</div>
+	</div>
+
+
+{%- endif %}
+{% endblock %}

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from app import db
-from sqlalchemy.dialects.mysql import DOUBLE
+from sqlalchemy.dialects.mysql import DOUBLE, DATETIME as MYSQL_DATETIME
+from sqlalchemy.ext.associationproxy import association_proxy
 from flask_security import UserMixin, RoleMixin
 
 import datetime
@@ -13,11 +14,58 @@ roles_users = db.Table(
     db.Column('role_id', db.Integer(), db.ForeignKey('role.id'))
 )
 
+guest_trackers_users = db.Table(
+	'guest_trackers_users',
+	db.Column(db.Integer, primary_key = True)
+	db.Column('user_id', db.Integer(), db.ForeignKey('user.id')),
+	db.Column('gpstracker_id', db.Integer(), db.ForeignKey('gpstracker.id'))
+	db.Column(db.DATETIME, default=datetime.datetime.utcnow)
+)
+	
+
 class Role(db.Model, RoleMixin):
 	__tablename__ = "role"
-	id 				=	db.Column(db.Integer, primary_key = True)
-	name			= db.Column(db.String(1024) , unique = True)
-	description		= db.Column(db.String(1024))
+	id 			= db.Column(db.Integer, primary_key = True)
+	name		= db.Column(db.String(1024) , unique = True)
+	description	= db.Column(db.String(1024))
+
+class gpstracker(db.Model):
+	id 					= db.Column(db.Integer, primary_key = True)
+	userid				= db.Column(db.Integer, db.ForeignKey('user.id'))
+	request_ip			= db.Column(db.String(45) , index = True, nullable=False)  ## 45 is the max length of an IPv6 string
+	request_time		= db.Column(db.DATETIME, index = True, nullable=False)
+	bootstrap_code		= db.Column(db.String(64) , index = True, nullable=False)
+	bootstrapped		= db.Column(db.Boolean, default=False, nullable=False)
+	bootstrapped_time	= db.Column(db.DATETIME)
+	bootstrapped_ip		= db.Column(db.String(45) , index = True)  ## 45 is the max length of an IPv6 string
+	bootstrap_config	= db.Column(db.BLOB(10240))
+	tracker_name		= db.Column(db.String(1024) , index = True, nullable=False)
+	friendly_name		= db.Column(db.String(1024) , index = True)
+	html_color			= db.Column(db.String(7))
+	
+	owner			= db.relationship('User', backref=db.backref("trackers",lazy='dynamic'))
+	trackercert		= db.relationship('gpstrackercert', back_populates="gpstracker")
+	
+	
+	
+	sharedto = db.relationship(
+        'User',
+        secondary=guest_trackers_users,
+        backref=db.backref('guestrackers', lazy='dynamic'),
+		lazy='dynamic')
+		
+	db.Index('tracker_id_name_user', 'id', 'tracker_name','userid', unique=True)
+	db.Index('tracker_id_name', 'id', 'tracker_name')
+
+	
+	def __init__(self, userid, request_ip, request_time, bootstrap_code, tracker_name, bootstrap_config, bootstrapped_time):
+		self.userid		= userid
+		self.request_ip	= request_ip
+		self.request_time	= request_time
+		self.bootstrap_code	= bootstrap_code
+		self.tracker_name = tracker_name
+		self.bootstrap_config = bootstrap_config
+		self.bootstrapped_time = bootstrapped_time
 
 class User(db.Model, UserMixin):
 	id 				=	db.Column(db.Integer, primary_key = True)
@@ -38,53 +86,13 @@ class User(db.Model, UserMixin):
 	roles = db.relationship(
         'Role',
         secondary=roles_users,
-        backref=db.backref('users', lazy='dynamic')
-)
-
-
-class gpstrackercert(db.Model):
-	id 				= 	db.Column(db.Integer, primary_key = True)
-	trackerid		= 	db.Column(db.Integer, db.ForeignKey('gpstracker.id'))
-	gpstracker		=   db.relationship('gpstracker', back_populates="trackercert")
-	cert			=	db.Column(db.BLOB(10240))
-	cert_time		=	db.Column(db.DATETIME, index = True)
-	pkey			=	db.Column(db.BLOB(10240))
-	csr				=	db.Column(db.BLOB(10240))
-	csr_time		=	db.Column(db.DATETIME, index = True, nullable=True)
+        backref=db.backref('users', lazy='dynamic'))
 	
-	def __init__(self, trackerid, csr, pkey, csr_time = datetime.datetime.utcnow()):
-		self.trackerid	= trackerid
-		self.csr		= csr
-		self.pkey		= pkey
-		self.csr_time	= csr_time
-	
-	
-
-class gpstracker(db.Model):
-	id 				= db.Column(db.Integer, primary_key = True)
-	userid			= db.Column(db.Integer, db.ForeignKey('user.id'))
-	request_ip		= db.Column(db.String(45) , index = True, nullable=False)  ## 45 is the max length of an IPv6 string
-	request_time	= db.Column(db.DATETIME, index = True, nullable=False)
-	bootstrap_code	= db.Column(db.String(64) , index = True, nullable=False)
-	bootstrapped	= db.Column(db.Boolean, default=False, nullable=False)
-	bootstrapped_time = db.Column(db.DATETIME)
-	bootstrapped_ip = db.Column(db.String(45) , index = True)  ## 45 is the max length of an IPv6 string
-	bootstrap_config	=	db.Column(db.BLOB(10240))
-	tracker_name	= db.Column(db.String(1024) , index = True, nullable=False, unique = True)
-	friendly_name	= db.Column(db.String(1024) , index = True)
-	
-	owner			= db.relationship('User', backref=db.backref("trackers",lazy='dynamic'))
-	trackercert		= db.relationship('gpstrackercert', back_populates="gpstracker")
-	
-	def __init__(self, userid, request_ip, request_time, bootstrap_code, tracker_name, bootstrap_config, bootstrapped_time):
-		self.userid		= userid
-		self.request_ip	= request_ip
-		self.request_time	= request_time
-		self.bootstrap_code	= bootstrap_code
-		self.tracker_name = tracker_name
-		self.bootstrap_config = bootstrap_config
-		self.bootstrapped_time = bootstrapped_time
-
+	db.Index('emailpass', 'email', 'password')
+	db.Index('userpass', 'username', 'password')
+		
+		
+		
 class gpsposition(db.Model):
 	id 				= db.Column(db.Integer, primary_key = True)
 	trackerid		= db.Column(db.Integer, db.ForeignKey('gpstracker.id'))
@@ -92,7 +100,7 @@ class gpsposition(db.Model):
 	gps_longitude	= db.Column(DOUBLE())
 	gps_altitude	= db.Column(DOUBLE())
 	gps_speed		= db.Column(DOUBLE())
-	gps_time		= db.Column(db.DATETIME, index = True)
+	gps_time		= db.Column(MYSQL_DATETIME(fsp=6), index = True) ## IMPORTANT: WHATEVER DB YOU ARE USING IT MUST SUPPORT MILI/MICROSECONDS FOR DATETIME!!!
 	gps_ept			= db.Column(DOUBLE())
 	gps_epx			= db.Column(DOUBLE())
 	gps_epy			= db.Column(DOUBLE())
@@ -154,6 +162,23 @@ class gpsjsondata(db.Model):
 		self.clinet_ip		= client_ip
 		self.upload_time	= upload_time
 		self.jsondata		= jsondata
+
+class gpstrackercert(db.Model):
+	id 				= 	db.Column(db.Integer, primary_key = True)
+	trackerid		= 	db.Column(db.Integer, db.ForeignKey('gpstracker.id'))
+	gpstracker		=   db.relationship('gpstracker', back_populates="trackercert")
+	cert			=	db.Column(db.BLOB(10240))
+	cert_time		=	db.Column(db.DATETIME, index = True)
+	pkey			=	db.Column(db.BLOB(10240))
+	csr				=	db.Column(db.BLOB(10240))
+	csr_time		=	db.Column(db.DATETIME, index = True, nullable=True)
+	
+	def __init__(self, trackerid, csr, pkey, csr_time = datetime.datetime.utcnow()):
+		self.trackerid	= trackerid
+		self.csr		= csr
+		self.pkey		= pkey
+		self.csr_time	= csr_time
+
 		
 if __name__ == '__main__':
 	print 'Creating DB!'

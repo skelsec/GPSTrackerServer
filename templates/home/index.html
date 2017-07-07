@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+
+{% block content %}
+  {%- if current_user.is_authenticated == false -%}
+  <div class="row" style="padding-top: 70px">
+	<div class="col-md-12">
+		Please <a href="/login">Login</a> or  <a href="/register">Register</a>  
+	</div>
+  </div>
+  {% else %}
+
+
+
+
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCbh6_Jhpzj13qeM6Ujw_vjJZOK85o3SsI&callback=initMap"></script>
+  <script type="text/javascript" src="/scritps/gpstracker.js"></script>
+  
+  <script>
+  window.onload = function(){
+	initMap();
+	refreshLatestCoordinates();
+	};
+  </script>
+      
+
+
+	
+	<div class="row" style="padding-top: 50px">
+	<div class="col-md-9 embed-responsive embed-responsive-16by9">
+			<div id="map" class="embed-responsive-item" style="border: 1px solid black"></div>
+
+	</div>
+		<div class="col-md-3">
+
+            <div class="panel panel-default">
+                <!-- Default panel contents -->
+                <div class="panel-heading">Trackers</div>
+            
+                <!-- List group -->
+                <ul class="list-group" id="tracker_list">
+					{% for tracker in current_user.trackers.filter_by(bootstrapped = True).all() %}
+						
+						<li class="list-group-item" id="{{tracker.id}}"  style="background-color: #{% if tracker.html_color %}{{tracker.html_color}}{% else %}{{tracker.tracker_name[:6]}}{% endif %}">
+						<div class = "clearfix">
+							<a href="/route#{{tracker.id}}" type="button" class="btn btn-secondary btn-sm pull-left" role="button" aria-disabled="true">
+							{% if tracker.friendly_name %}
+								{{tracker.friendly_name}}
+							{% else %}
+							{{tracker.tracker_name}}
+							{% endif %}
+							
+							</a>
+							<div class="material-switch pull-right">
+								<input checked id="{{tracker.id}}_checkbox" name="{{tracker.id}}_showOnMap" type="checkbox" onclick="javascript:checkTracker('{{tracker.id}}')" />
+								<label for="{{tracker.id}}_checkbox" class="label-success"></label>
+							</div>
+						</div>
+						</li>
+					{% endfor %}
+                </ul>
+            </div>
+			
+			<div class="panel panel-default">
+                <!-- Default panel contents -->
+                <div class="panel-heading">Guest Trackers</div>
+            
+                <!-- List group -->
+                <ul class="list-group" id="guest_tracker_list">
+                    {% for tracker in current_user.guestrackers.filter_by(bootstrapped = True).all() %}
+						<li class="list-group-item" id="{{tracker.id}}"  style="background-color: #{% if tracker.html_color %}{{tracker.html_color}}{% else %}{{tracker.tracker_name[:6]}}{% endif %}">
+						<div class = "clearfix">
+							<a href="/route#{{tracker.id}}" type="button" class="btn btn-secondary btn-sm pull-left" role="button" aria-disabled="true">
+							{% if tracker.friendly_name %}
+								{{tracker.friendly_name}}
+							{% else %}
+							{{tracker.tracker_name}}
+							{% endif %}
+							
+							</a>
+							<div class="material-switch pull-right">
+								<input checked id="{{tracker.id}}_checkbox" name="{{tracker.id}}_showOnMap" type="checkbox" onclick="javascript:checkTracker('{{tracker.id}}')" />
+								<label for="{{tracker.id}}_checkbox" class="label-success"></label>
+							</div>
+						</div>
+						</li>
+
+					{% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+
+{%- endif %}
+{% endblock %}

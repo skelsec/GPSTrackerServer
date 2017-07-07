@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+
+{% block content %}
+  {%- if current_user.is_authenticated == false -%}
+  You are not logged in :(
+  
+  {% else %}
+
+  <script type="text/javascript" src="/scritps/gpstracker.js"></script>
+  
+  <script>
+  window.onload = function(){
+	//initMap();
+	//refreshLatestCoordinate();
+	};
+  </script>
+      
+
+	
+	<div class="row" style="padding-top: 70px">
+		<div class="col-md-4">
+		            <div class="panel panel-default">
+                <!-- Default panel contents -->
+                <div class="panel-heading">Active Trackers</div>
+            
+                <!-- List group -->
+                <ul class="list-group" id="active_tracker_list">
+					{% for tracker in current_user.trackers.filter_by(bootstrapped = True).all() %}
+						
+						<li class="list-group-item" id="{{tracker.id}}"  style="background-color: #{% if tracker.html_color %}{{tracker.html_color}}{% else %}{{tracker.tracker_name[:6]}}{% endif %}">
+						<div class = "clearfix">
+							<div style="background-color: #DDDDDD" class="pull-left">
+							{% if tracker.friendly_name %}
+								{{tracker.friendly_name}}
+							{% else %}
+							{{tracker.tracker_name}}
+							{% endif %}
+							</div>
+						</div>
+							<div>
+								<div class="panel-heading">Shared with</div>
+								<ul class="list-group" id="list_shared_with">
+									{% for guest_user in tracker.sharedto.all() %}
+										<li class="list-group-item">{{guest_user.email}}
+											<div class="pull-right">
+												<button class="btn btn-primary" type="submit" onclick="unshareGPSTracker('{{tracker.id}}', '{{guest_user.email}}') ">Unshare</button>
+											</div>
+										</li>
+									{% endfor %}
+								</ul>
+							</div>
+							<div>
+								<div class="panel-heading">Share</div>
+								<input type="text" id="share_email_{{tracker.id}}">share to email<br>
+								<button type="button" class="btn btn-primary btn-lg btn-block" onclick="shareGPSTracker('{{tracker.id}}')">Share tracker</button>
+							</div>
+						</li>
+					{% endfor %}
+                </ul>
+            </div>
+		
+		</div>
+		<div class="col-md-4">
+
+
+			
+			<div class="panel panel-default">
+                <!-- Default panel contents -->
+                <div class="panel-heading">Inactive Trackers</div>
+            
+                <!-- List group -->
+                <ul class="list-group" id="not_activated_tracker_list">
+					{% for tracker in current_user.trackers.filter_by(bootstrapped = False).all() %}
+						
+						<li class="list-group-item" id="{{tracker.id}}"  style="background-color: #{% if tracker.html_color %}{{tracker.html_color}}{% else %}{{tracker.tracker_name[:6]}}{% endif %}">
+						<div class = "clearfix">
+							<div style="background-color: #DDDDDD" class="pull-left">
+							{% if tracker.friendly_name %}
+								{{tracker.friendly_name}}
+							{% else %}
+							{{tracker.tracker_name}}
+							{% endif %}
+							</div>
+							<div class="pull-right">
+								<button class="btn btn-primary" type="submit" onclick="window.location='/gpstracker/{{tracker.id}}'">Get Config</button>
+							</div>
+						</div>
+						</li>
+					{% endfor %}
+                </ul>
+            </div>
+        </div>
+		<div class="col-md-4">
+		            <div class="panel panel-default">
+                <!-- Default panel contents -->
+                <div class="panel-heading">Trackers shared with you</div>
+            
+                <!-- List group -->
+                <ul class="list-group" id="shared_tracker_list">
+					{% for tracker in current_user.guestrackers.filter_by(bootstrapped = True).all() %}
+						
+						<li class="list-group-item" id="{{tracker.id}}"  style="background-color: #{% if tracker.html_color %}{{tracker.html_color}}{% else %}{{tracker.tracker_name[:6]}}{% endif %}">
+						<div class = "clearfix">
+							<div style="background-color: #DDDDDD" class="pull-left">
+							{% if tracker.friendly_name %}
+								{{tracker.friendly_name}}
+							{% else %}
+							{{tracker.tracker_name}}
+							{% endif %}
+							</div>
+							<div class="material-switch pull-right">
+								<input checked id="{{tracker.tracker_name}}_checkbox" name="{{tracker.tracker_name}}_showOnMap" type="checkbox" onclick="javascript:checkTracker('{{tracker.tracker_name}}')" />
+								<label for="{{tracker.tracker_name}}_checkbox" class="label-success"></label>
+							</div>
+						</div>
+						</li>
+					{% endfor %}
+                </ul>
+            </div>
+		</div>
+    </div>
+	<div class="row" style="padding-top: 70px">
+		<div class="col-md-4">
+		</div>
+		<div class="col-md-4">
+		<button type="button" class="btn btn-primary btn-lg btn-block" onclick="addGPSTracker()">+ Add tracker</button>
+		</div>
+		<div class="col-md-4">
+		</div>
+    </div>
+
+
+{%- endif %}
+{% endblock %}
+

@@ -1,5 +1,5 @@
 from rdp import rdp
-from haversine import distance as gpsdistance
+from geopy.distance import vincenty
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
@@ -11,3 +11,8 @@ def routefilter(rawpoints, slicesize = 10, epsilon=0.5):
 	for points in chunks(rawpoints, slicesize):
 		for point in rdp(points, epsilon=epsilon, return_mask=True):
 			yield(point)
+			
+			
+
+def GPSdistance(origin, destination):
+	return vincenty(origin, origin).meters

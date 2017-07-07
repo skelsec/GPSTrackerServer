@@ -1,29 +1,60 @@
-<html>
-<head>
-  <title>Flask-Security Example</title>
-</head>
-<body>
-{%- with messages = get_flashed_messages(with_categories=true) -%}
-  {% if messages %}
-    <ul class=flashes>
-    {% for category, message in messages %}
-      <li class="{{ category }}">{{ message }}</li>
-    {% endfor %}
-    </ul>
-  {% endif %}
-{%- endwith %}
-<ul>
-{% if current_user.is_authenticated %}
-  <li>Hello {{ current_user.email }}</li>
-  <li><a href="{{ url_for('security.logout') }}">Logout</a></li>
-{% else %}
-  <li><a href="{{ url_for('security.login') }}">Login</a></li>
-  <li><a href="{{ url_for('security.register') }}">Register</a></li>
-{% endif %}
-</ul>
+{% extends "bootstrap/base.html" %}
 
-{% block content %}
+{% block styles %}
+	<link rel="stylesheet" type="text/css" href="/css/site.css"/>
+	{{super()}}
 {% endblock %}
 
-</body>
-</html>
+{% block scripts %}
+	{{super()}}
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.6/moment.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.37/js/bootstrap-datetimepicker.min.js"></script>
+	<script type="text/javascript" src="/scritps/datetime.js"></script>
+	<script type="text/javascript" src="/scritps/randomColor.js"></script>
+	<script type="text/javascript" src="/scritps/gpstracker.js"></script>
+{%- endblock scripts %}
+
+{% block navbar %}
+<div class="container">
+<div class="row">
+		<div class="col-md-12">
+			<nav class="navbar navbar-default navbar-inverse navbar-fixed-top" role="navigation">
+				<div class="navbar-header">
+					 
+					<button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+						 <span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span>
+					</button> <a class="navbar-brand" href="/">GPSTracker</a>
+				</div>
+				
+				<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+					
+					<ul class="nav navbar-nav navbar-right" style="padding-right: 20px">
+						{% include "security/_menu.html" %}
+						{%- if current_user.is_authenticated -%}
+						 <li>
+							<a href="/settings">Settings</a>
+						</li>
+						<li>
+							<a href="/trackers">Trackers</a>
+						</li>
+						<li>
+							<a href="/messages">Messages</a>
+						</li>
+						  
+						  {% endif %}
+						
+					</ul>
+				</div>
+				
+			</nav>
+		</div>
+</div>
+</div>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid">
+    {{ content }}
+    </div>
+{% endblock %}
+
