@@ -13,6 +13,5 @@ def routefilter(rawpoints, slicesize = 10, epsilon=0.5):
 			yield(point)
 			
 			
-
 def GPSdistance(origin, destination):
-	return vincenty(origin, origin).meters
+	return vincenty(origin, destination).meters

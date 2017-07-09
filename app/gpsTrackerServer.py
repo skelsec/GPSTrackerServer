@@ -13,6 +13,7 @@ import os
 import pprint
 import gpxpy
 import gpxpy.gpx 
+import pytz
 
 
 
@@ -475,53 +476,76 @@ class GPSPosition(Resource):
 	tracker_name: the name of the GPSTracker (which is in the CN filed of the SSL cert)
 	'''
 	def post(self):
+		route_name = '[GPSPosition POST request]' 
 		############## TODOTODO!!!!!!#############
 		#### implement CN name extraction and compare it to the tracker_name!!!!
 		#app.logger.warning(str(pprint.pformat(request.__dict__, depth=5)))
-		tracker_name = request.environ['SSL_CLIENT_S_DN_CN']
-		tracker_id = int(request.environ['SSL_CLIENT_S_DN_OU'])
-		
-		#check if we find the tracker based on the certificate parameters
-		tracker = TrackerTable.query.filter_by(id = tracker_id).filter(TrackerTable.tracker_name == tracker_name).first()
-		if tracker == None:
-			app.logger.warning('Could not find tracker in database')
-			return ErrorResponse('Could not find tracker in database').toDict()
-			
-				
-		client_ip = getclientIP(request)
-		upload_time = datetime.datetime.utcnow()
-
-		if request.content_length is not None and request.content_length > app.config['POST_DATA_MAX_SIZE']:
-			app.logger.warning('Error POST DATA SIZE')
-			return ErrorResponse('Content length missing or too large!').toDict()
 		try:
-			compressedFile = cStringIO.StringIO(request.get_data())
-			compressedFile.seek(0)
-			decompressedFile = gzip.GzipFile(fileobj=compressedFile, mode='rb')
-			for line in decompressedFile:
-				line = line.strip()
-				try:
-					gpsdata = json.loads(line)
-					if 'class' not in gpsdata:
-						app.loggger.warning('Decompressed data type is not what is expected')
-						return 'Error'
+			#app.logger.debug('GPSPosition POST request in')
+			tracker_name = request.environ['SSL_CLIENT_S_DN_CN']
+			tracker_id = int(request.environ['SSL_CLIENT_S_DN_OU'])
+			
+			#app.logger.debug('%s tracker_name: %s' %(route_name, tracker_name,))
+			#app.logger.debug('%s tracker_id: %s' %(route_name, tracker_id,))
+			
+			#check if we find the tracker based on the certificate parameters
+			current_tracker = TrackerTable.query.filter_by(id = tracker_id).filter(TrackerTable.tracker_name == tracker_name).first()
+			if current_tracker == None:
+				app.logger.debug('%s Could not find tracker in database' %(route_name,))
+				return ErrorResponse('Could not find tracker in database').toDict()
+				
+					
+			client_ip = getclientIP(request)
+			upload_time = datetime.datetime.utcnow()
 
+			if request.content_length is not None and request.content_length > app.config['POST_DATA_MAX_SIZE']:
+				app.logger.debug('%s request size too large' %(route_name,))
+				return ErrorResponse('Content length missing or too large!').toDict()
+			
+
+			#app.logger.debug('%s sanity check passed!' %(route_name,))
+			try:
+				compressedFile = cStringIO.StringIO(request.get_data())
+				compressedFile.seek(0)
+				decompressedFile = gzip.GzipFile(fileobj=compressedFile, mode='rb')
+				#app.logger.debug('%s created decompression object' %(route_name,))
+			except:
+				app.logger.exception('%s Error decompressing data!' %(route_name,))
+				return ErrorResponse('Error decompressing data!').toDict()
+			
+
+			try:			
+				for line in decompressedFile:
+					line = line.strip()
+					gpsdata = json.loads(line)
+					#app.logger.debug('%s gpsdata: %s' %(route_name,gpsdata))
+					if 'class' not in gpsdata:
+						app.logger.warning('%s Decompressed data type is not what is expected' %(route_name,))
+						return ErrorResponse('Decompressed data type is not what is expected').toDict()
+						
+					gpsraw = gpsjsondata(line, current_tracker, client_ip, upload_time)
+					db.session.add(gpsraw)
+
+					
 					if gpsdata['class'] == 'TPV':
-						gpsp = gpsposition(gpsdata, tracker_id, client_ip, upload_time)
+						gpsp = gpsposition(gpsdata, current_tracker, client_ip, upload_time)
+						current_tracker.gpsposition.append(gpsp)
 						db.session.add(gpsp)
 
-					gpsraw = gpsjsondata(line, tracker_id, client_ip, upload_time)
-					db.session.add(gpsraw)
-					db.session.commit()
-				except Exception as e:
-					app.logger.exception('Error parsing client GPS data!')
-					return ErrorResponse('Error parsing data!').toDict()
+				db.session.commit()					
+				
+				#app.logger.debug('%s Sending OK!' %(route_name,))
+				return OKResponse().toDict(), 200
 
-		except:
-			#log
-			return ErrorResponse('Error decompressing data!').toDict()
+			except:
+				app.logger.exception('%s Failed processing decompressed position data' %(route_name,))
+				return ErrorResponse('Error decompressing data!').toDict()
+				
+		except Exception as e:
+			app.logger.exception('Generic exception!')
+			return ErrorResponse('Error parsing data!').toDict()
 
-		return OKResponse().toDict(), 200
+		
 
 	'''
 	GET with start and end date set: gets the GPS positional data in a formatted manner for the time period specified. Filtering will be applied here!
@@ -567,13 +591,13 @@ class GPSPosition(Resource):
 				t['tracker_id'] = str(current_tracker.id)
 				t['tracker_name'] = current_tracker.tracker_name
 				t['friendly_name'] = current_tracker.friendly_name
-				if hasattr(current_tracker, 'html_color'):
+				if hasattr(current_tracker, 'html_color') and current_tracker.html_color != None:
 					t['html_color'] = current_tracker.html_color
 				else:
 					t['html_color'] = t['tracker_name'][:6]
 				
 				
-				gpspos = current_tracker.gpsposition.filter(gpsposition.gps_mode != 1).order_by(gpsposition.gps_time.desc()).first()
+				gpspos = current_tracker.gpsposition.filter(gpsposition.gps_mode != 1).order_by(gpsposition.gps_time.desc()).with_hint(gpsposition, 'USE INDEX(latestposlookupindx)','mysql').first()
 				if not gpspos:
 					return ErrorResponse('No position data for tracker!').toDict(), 200
 					
@@ -598,23 +622,22 @@ class GPSPosition(Resource):
 				end   = parse(end_date)
 				
 			except Exception as e:
-				return ErrorResponse('Date format not recognized!').toDict()
 				app.logger.exception('Date format not recognized!')
+				return ErrorResponse('Date format not recognized!').toDict()
+				
 			
 			app.logger.info('Position requested for tracker %s Between %s and %s' % (current_tracker.id, start.isoformat() , end.isoformat()))
 			
 			if format == 'ROUTEINFO':
-				route = GPSRoute(current_tracker)
-				points = 0
-
-				for gpspos in current_tracker.gpsposition.filter(gpsposition.gps_mode != 1).filter(gpsposition.gps_speed.between(app.config['GPS_MINIMUM_SPEED'], app.config['GPS_MAX_SPEED'])).filter(gpsposition.gps_time.between(start, end)).order_by(gpsposition.gps_time.asc()).all():
-					route.addPoint(gpspos)
-					points += 1
-
-				app.logger.info('Position list data length: %s' % (points,))
-			
-			
+				app.logger.info('Format: ROUTEINFO')
+				route = GPSRoute(current_tracker,start,end)
+				route.createSegments()
+				if len(route.routesegments) == 0:
+					app.logger.info('No segments found')
+					return ErrorResponse('No points in the time period').toDict()
+					
 				route.finalize()
+				app.logger.info('Returning response')
 				return GPSRouteResponse(route.toDict()).toDict(), 200
 				
 			elif format == 'GPX':			
@@ -641,63 +664,178 @@ class GPSPosition(Resource):
 		except Exception as e:
 			app.logger.exception('Generic exception!')
 			
+class GPSRouteInfo():
+	
+	def __init__(self):
+		self.total_distance_start_stop	= 0.0
+		self.total_distance_traveled	= 0.0
+		self.total_time					= 0
+		self.max_speed					= 0.0
+		self.avg_speed					= 0.0
+		self.max_elevation				= 0.0
+		self.min_elevation				= 0.0
+		self.max_speed_point			= 0
+		self.max_elevation_point		= 0
+		self.min_elevation_point		= 0
+	
+	def calc(self, filtered_route):
+		#self.total_distance_start_stop
+		
+		start_point = (filtered_route[0].gps_latitude, filtered_route[0].gps_longitude)
+		end_point = (filtered_route[-1].gps_latitude, filtered_route[-1].gps_longitude)
+		self.total_distance_start_stop = GPSdistance(start_point, end_point)
+		
+		#self.total_time
+		start_time = filtered_route[0].gps_time
+		end_time = filtered_route[-1].gps_time
+		self.total_time = (end_time - start_time).total_seconds()
+		
+		#self.max_speed #self.max_elevation #self.low_elevation #self.total_distance_travelled
+		total_speed = 0.0
+		pos_n_1 = filtered_route[0]
+		self.max_elevation = pos_n_1.gps_altitude
+		self.min_elevation = pos_n_1.gps_altitude
+		average_points = 0
+		position_points = 1
+		for pos in filtered_route[1:]:
+			position_points += 1
+			ev = pos.gps_altitude
+			dist = GPSdistance((pos_n_1.gps_latitude, pos_n_1.gps_longitude), (pos.gps_latitude, pos.gps_longitude))
+			self.total_distance_traveled += float(dist)
 
+			if pos.gps_time == pos_n_1.gps_time:
+				#app.logger.debug('Two GPS timestamps were found to be equal! This indicates that you are storing the timestamps in a DB that doesnt use the full precision of the GPS timestamps OR you are a timetraveller. Please check the non-existent manual what to do in this situation!')
+				continue
+			
+			speed = float(dist)/(float( (pos.gps_time - pos_n_1.gps_time).total_seconds()))
+			average_points += 1
+			
+			total_speed += speed
+			if self.max_speed < speed:
+				self.max_speed = speed
+				self.max_speed_point = position_points
+		
+				
+			if self.max_elevation < ev:
+				self.max_elevation = ev
+				self.max_elevation_point = position_points -1
+		
+			
+			if self.min_elevation > ev:
+				self.min_elevation = ev
+				self.min_elevation_point = position_points -1
+				
+			pos_n_1 = pos
+			
+		#self.avg_speed
+		if average_points != 0:
+			self.avg_speed = float(total_speed/float(average_points))
+	
+	
+	
+	def toDict(self):
+		t = {}
+		t['total_distance_start_stop'] = str(self.total_distance_start_stop)
+		t['total_distance_traveled'] = str(self.total_distance_traveled)
+		t['total_time'] = self.total_time
+		#t['total_time'] = datetime.timedelta(seconds=self.total_time).strftime("%H:%M:%S")
+		t['max_speed'] = str(self.max_speed)
+		t['avg_speed'] = str(self.avg_speed)
+		t['max_elevation'] = str(self.max_elevation)
+		t['min_elevation'] = str(self.min_elevation)
+		t['max_speed_point'] = self.max_speed_point
+		t['max_elevation_point'] = self.max_elevation_point
+		t['min_elevation_point'] = self.min_elevation_point
+		return t
+			
+class GPSRouteSegment():
+	def __init__(self):
+		self.routeinfo = GPSRouteInfo()
+		
+		self.gpspositions	= []
+		self.filtered_route	= []
+		
+		
+	def filter_route(self):
+		gpspositions_2D = []
+		for temp in self.gpspositions:
+			gpspositions_2D.append((temp.gps_latitude, temp.gps_longitude))
+		
+		for gpspos, enabled in zip(self.gpspositions, routefilter(gpspositions_2D,5,0.5)):
+			if enabled:
+				self.filtered_route.append(gpspos)
+		
+		
+	def finalize(self):
+		### filtering out some points to make the path smoother
+		self.filter_route()
+		
+		### calculating routeinfo statistics	
+		self.routeinfo.calc(self.filtered_route)
+	
+	def toDict(self):
+		t = {}
+		t['filtered_route'] = []
+		for gpspos in self.filtered_route:
+			t['filtered_route'].append(gpspos.toDict())
+		t['routeinfo'] = self.routeinfo.toDict()
+		
+		return t
 			
 class GPSRoute():
-	def __init__(self, tracker):
+	def __init__(self, tracker, start, end):
+		self.tracker = tracker
 		self.tracker_id = str(tracker.id)
 		self.tracker_name = tracker.tracker_name
 		self.friendly_name =  tracker.friendly_name
 		self.html_color = ''
+		self.start = start
+		self.end = end
 		
 		if hasattr(tracker, 'html_color'):
 			self.html_color = tracker.html_color
 		else:
 			self.html_color = self.tracker_name[:6]
 			
-		self.gpspositions_2D = []
-		self.gpspositions = []
+
 		self.filtered_route = []
 		self.routeinfo = GPSRouteInfo() #this is for the total route!!! (segments have different info)
 		self.routesegments = []
 		
 		self._current_segment = GPSRouteSegment()
 		
+	def createSegments(self):
+		app.logger.debug('createSegments')
+		segment_start = ''
+		current_time = ''
 		
-	def addPoint(self,gpspos):
-		#adds GPS points to the route. if the route tracker was standing still for a time specified in 'GPS_MAX_STANDING_TIME' then we create a new segment
-		
-		if len(self.routesegments) == 0 and self._current_segment.lastime == '':
-			#this is for the very first point only
-			self._current_segment.addPoint(gpspos)
-			return
-		
-		if (gpspos.gps_time - self._current_segment.lastime).total_seconds() > app.config['GPS_MAX_STANDING_TIME']:
-			app.logger.info('Finalizing segment with %s points!' % len(self._current_segment.gpspositions),)
-			self._current_segment.finalize()
-			self.routesegments.append(self._current_segment)
-			self._current_segment = GPSRouteSegment()
-		
-		self._current_segment.addPoint(gpspos)
-		
-
-	def finalize(self):
-		if len(self._current_segment.gpspositions) != 0:
-			self._current_segment.finalize()
-			self.routesegments.append(self._current_segment)
+		for gpspos in self.tracker.gpsposition.filter(gpsposition.gps_mode != 1).filter(gpsposition.gps_speed.between(app.config['GPS_MINIMUM_SPEED'], app.config['GPS_MAX_SPEED'])).filter(gpsposition.gps_time.between(self.start, self.end)).order_by(gpsposition.gps_time.asc()).all():
 			
-		
+			if len(self.routesegments) == 0 and len(self._current_segment.gpspositions) == 0:
+				#this is for the very first point only
+				segment_start = gpspos.gps_time
+				current_time = gpspos.gps_time
+				self._current_segment.gpspositions.append(gpspos)
+				continue
+			
+			if (gpspos.gps_time - self._current_segment.gpspositions[-1].gps_time).total_seconds() > app.config['GPS_MAX_STANDING_TIME']:
+				app.logger.debug('Creating new segment.')
+				self._current_segment.finalize()
+				self.routesegments.append(self._current_segment)
+				self._current_segment = GPSRouteSegment()
+			
+			self._current_segment.gpspositions.append(gpspos)
+			
+	def finalize(self):
 		self.calc_total_info()
 		
 	def calc_total_info(self):
-
-
-		self.routeinfo.total_distance_start_stop = GPSdistance(self.routesegments[0].gpspositions_2D[0], self.routesegments[-1].gpspositions_2D[0])
+		self.routeinfo.total_distance_start_stop = GPSdistance((self.routesegments[0].gpspositions[0].gps_latitude,self.routesegments[0].gpspositions[0].gps_longitude ), (self.routesegments[-1].gpspositions[-1].gps_latitude,self.routesegments[-1].gpspositions[-1].gps_longitude ))
 		
 		total_speed  = 0
 		points = 0
 		for segment in self.routesegments:
-			self.routeinfo.total_distance_travelled += segment.routeinfo.total_distance_travelled
+			self.routeinfo.total_distance_traveled += segment.routeinfo.total_distance_traveled
 			self.routeinfo.total_time += segment.routeinfo.total_time
 			if self.routeinfo.max_speed < segment.routeinfo.max_speed:
 				self.routeinfo.max_speed = segment.routeinfo.max_speed
@@ -718,7 +856,6 @@ class GPSRoute():
 		t['tracker_name'] = self.tracker_name
 		t['friendly_name'] = self.friendly_name
 		t['html_color'] = self.html_color
-		t['filtered_route'] = self.filtered_route
 		t['routeinfo'] = self.routeinfo.toDict()
 		t['routesegments'] = []
 		for segment in self.routesegments:
@@ -726,156 +863,6 @@ class GPSRoute():
 		
 		return t
 
-class GPSRouteSegment():
-	def __init__(self):		
-		self.gpspositions_2D = []
-		self.gpspositions = []
-		self.filtered_route = []
-		self.routeinfo = GPSRouteInfo()
-		self.lastime = ''
-		
-	def addPoint(self,gpspos):
-		temp = {}
-		temp['lat'] = str(gpspos.gps_latitude)
-		temp['lng'] = str(gpspos.gps_longitude)
-		temp['alt'] = str(gpspos.gps_altitude)
-		temp['speed'] = str(gpspos.gps_speed)
-		temp['time'] = gpspos.gps_time.isoformat()
-		
-		self.lastime =  gpspos.gps_time
-		self.gpspositions.append(temp)
-		self.gpspositions_2D.append((float(temp['lat']), float(temp['lng'])))
-		
-	def filter_route(self):
-		self.filtered_route = list(compress(self.gpspositions, routefilter(self.gpspositions_2D,5,0.5)))
-		
-	def finalize(self):
-		## we filter out the end of the list where the tracker was standing still
-		lastzero = len(self.gpspositions)
-		for pos in self.gpspositions[::-1]:
-			if float(pos['speed']) == 0:
-				lastzero -= 1
-			else:
-				break
-				
-		self.gpspositions = self.gpspositions[:lastzero]
-		
-		### filtering out some points to make the path smoother
-		self.filter_route()
-		
-		### calculating routeinfo statistics
-		self.routeinfo.calc(self.gpspositions, self.filtered_route)
-		
-		
-	def toDict(self):
-		t = {}
-		t['filtered_route'] = self.filtered_route
-		t['routeinfo'] = self.routeinfo.toDict()
-		
-		return t	
-		
-class GPSRouteInfo():
-	def __init__(self):
-		self.total_distance_start_stop = 0.0
-		self.total_distance_travelled = 0.0
-		self.total_time = 0
-		self.max_speed = 0.0
-		self.avg_speed = 0.0
-		self.max_elevation = 0.0
-		self.min_elevation = 0.0
-
-	def calc(self, gpspositions, filtered_route):
-		#self.total_distance_start_stop
-		start_point = (float(gpspositions[0]['lat']), float(gpspositions[0]['lng']))
-		end_point = (float(gpspositions[-1]['lat']), float(gpspositions[-1]['lng']))
-		self.total_distance_start_stop = GPSdistance(start_point, end_point)
-		
-		#self.total_distance_travelled
-		lat_n_1 = start_point[0]
-		lng_n_1 = start_point[1]
-		for pos in filtered_route[1:]:
-			self.total_distance_travelled += GPSdistance((lat_n_1, lng_n_1), (float(pos['lat']), float(pos['lng'])))
-			lat_n_1 = float(pos['lat'])
-			lng_n_1 = float(pos['lng'])
-			
-		#self.total_time
-		start_time = parse(gpspositions[0]['time'])
-		end_time = parse(gpspositions[-1]['time'])
-		
-		self.total_time = (end_time - start_time).total_seconds()
-		"""
-		#self.max_speed #self.max_elevation #self.low_elevation
-		total_speed = 0.0
-		pos_n_1 = gpspositions[0]
-		ev = float(pos_n_1['alt'])
-		
-		for pos in gpspositions[1:]:
-			dist = GPSdistance((float(pos_n_1['lat']), float(pos_n_1['lat'])), (float(pos['lat']), float(pos['lng'])))
-			if pos['time'] == pos_n_1['time']:
-				#app.logger.debug('Two GPS timestamps were found to be equal! This indicates that you are storing the timestamps in a DB that doesnt use the full precision of the GPS timestamps OR you are a timetraveller. Please check the non-existent manual what to do in this situation!')
-				continue
-			
-			speed = dist/(float( (parse(pos['time']) - parse(pos_n_1['time'])).total_seconds()))
-			total_speed += speed
-			if self.max_speed < speed:
-				self.max_speed = speed
-				
-			if self.max_elevation < ev:
-				self.max_elevation = ev
-			
-			if self.min_elevation > ev:
-				self.min_elevation = ev
-				
-			pos_n_1 = pos
-		"""
-		
-		#self.max_speed #self.max_elevation #self.low_elevation
-		total_speed = 0.0
-		pos_n_1 = filtered_route[0]
-		self.max_elevation = float(pos_n_1['alt'])
-		self.min_elevation = float(pos_n_1['alt'])
-		points = 0
-		
-		for pos in filtered_route[1:]:
-			ev = float(pos['alt'])
-			dist = GPSdistance((float(pos_n_1['lat']), float(pos_n_1['lng'])), (float(pos['lat']), float(pos['lng'])))
-			if pos['time'] == pos_n_1['time']:
-				#app.logger.debug('Two GPS timestamps were found to be equal! This indicates that you are storing the timestamps in a DB that doesnt use the full precision of the GPS timestamps OR you are a timetraveller. Please check the non-existent manual what to do in this situation!')
-				continue
-			
-			speed_m_s = float(dist)/(float( (parse(pos['time']) - parse(pos_n_1['time'])).total_seconds()))
-			speed = speed_m_s*3.6
-			points += 1
-			
-			total_speed += speed
-			if self.max_speed < speed:
-				self.max_speed = speed
-				
-			if self.max_elevation < ev:
-				self.max_elevation = ev
-			
-			if self.min_elevation > ev:
-				self.min_elevation = ev
-				
-			pos_n_1 = pos
-			
-		
-		
-		#self.avg_speed
-		self.avg_speed = float(float(total_speed)/float(points))
-
-	def toDict(self):
-		t = {}
-		t['total_distance_start_stop'] = "{0:.2f}".format(self.total_distance_start_stop/1000) + 'km'
-		t['total_distance_travelled'] = "{0:.2f}".format(self.total_distance_travelled/1000) + 'km'
-		t['total_time'] = str(datetime.timedelta(seconds=self.total_time)) 
-		t['max_speed'] = "{0:.2f}".format(self.max_speed) + 'km/h' 
-		t['avg_speed'] = "{0:.2f}".format(self.avg_speed) + 'km/h'
-		t['max_elevation'] = self.max_elevation
-		t['min_elevation'] = self.min_elevation
-
-		return t
-				
 """
 @app.before_request
 def before():

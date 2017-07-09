@@ -175,6 +175,7 @@ function getGPSData(url, callback) {
 function GPSTrackerPlotLatest(xmlhttp){
 	
 	if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+		
 		var jresponse = JSON.parse(xmlhttp.responseText);
 		if (jresponse.status != 'ok') { return "error"; }
 				
@@ -188,6 +189,7 @@ function GPSTrackerPlotLatest(xmlhttp){
 function GPSTrackerPlotRoute(xmlhttp)
 {
 	if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+				//alert(xmlhttp.responseText);
 				var jresponse = JSON.parse(xmlhttp.responseText);
 				if (jresponse.status != 'ok') { return "error"; }
 				
@@ -198,12 +200,17 @@ function GPSTrackerPlotRoute(xmlhttp)
 }
 
 function showRouteInfoSummary(gpsroute){
-	document.getElementById('summary_route_total_distance_travelled').innerText  = gpsroute.routeinfo.total_distance_travelled;
-	document.getElementById('summary_route_time_travelled').innerText  = gpsroute.routeinfo.total_time;
-	document.getElementById('summary_route_max_speed').innerText  = gpsroute.routeinfo.max_speed;
-	document.getElementById('summary_route_avg_speed').innerText  = gpsroute.routeinfo.avg_speed;
-	document.getElementById('summary_route_max_elev').innerText  = gpsroute.routeinfo.max_elevation;
-	document.getElementById('summary_route_min_elev').innerText  = gpsroute.routeinfo.min_elevation;
+	document.getElementById('summary_route_total_distance_traveled').innerText  = Math.round((gpsroute.routeinfo.total_distance_traveled/1000)*100)/100;
+	if (gpsroute.routeinfo.total_time < 86400){
+		document.getElementById('summary_route_time_traveled').innerText  = moment().startOf('day').seconds(gpsroute.routeinfo.total_time).format('HH:mm:ss'); //https://stackoverflow.com/questions/1322732/convert-seconds-to-hh-mm-ss-with-javascript
+	}
+	else{
+		document.getElementById('summary_route_time_traveled').innerText  = moment().startOf('year').seconds(gpsroute.routeinfo.total_time).format('DDD HH:mm:ss'); //https://stackoverflow.com/questions/1322732/convert-seconds-to-hh-mm-ss-with-javascript
+	}
+	document.getElementById('summary_route_max_speed').innerText  = Math.round(gpsroute.routeinfo.max_speed*3.6*100)/100; 
+	document.getElementById('summary_route_avg_speed').innerText  = Math.round(gpsroute.routeinfo.avg_speed*3.6*100)/100;  
+	document.getElementById('summary_route_max_elev').innerText  = Math.round(gpsroute.routeinfo.max_elevation*100)/100;
+	document.getElementById('summary_route_min_elev').innerText  = Math.round(gpsroute.routeinfo.min_elevation*100)/100;
 	
 }
 
@@ -252,35 +259,93 @@ function showSegmentRouteInfo(segment, routeSegmentId){
 	
 
 	// Insert new cells (<td> elements) at the 1st and 2nd position of the "new" <tr> element:
-	var cell_color = row.insertCell(row.length);
-	var cell_id = row.insertCell(row.length);
+	var cell_color		= row.insertCell(row.length);
+	var cell_id			= row.insertCell(row.length);
 	var cell_total_distance_traveled = row.insertCell(row.length);
-	var cell_time_travelled = row.insertCell(row.length);
-	var cell_max_speed= row.insertCell(row.length);
-	var cell_avg_speed = row.insertCell(row.length);
-	var cell_max_elev = row.insertCell(row.length);
-	var cell_min_elev = row.insertCell(row.length);
-	var cell_enable = row.insertCell(row.length);
-	var cell_save = row.insertCell(row.length);
+	var cell_time_traveled	= row.insertCell(row.length);
+	var cell_time_start		= row.insertCell(row.length);
+	var cell_time_stop		= row.insertCell(row.length);
+	var cell_max_speed		= row.insertCell(row.length);
+	var cell_avg_speed		= row.insertCell(row.length);
+	var cell_max_elev		= row.insertCell(row.length);
+	var cell_min_elev		= row.insertCell(row.length);
+	var cell_enable			= row.insertCell(row.length);
+	var cell_save			= row.insertCell(row.length);
 	
-	cell_total_distance_traveled.innerHTML = segment.routeinfo.total_distance_travelled;
-	cell_color.innerHTML = '<button type="button" class="btn btn-primary btn-sm" style="background-color: '+segment.color+'" id="'+routeSegmentId+'_color">x</button>';
+	var URLbase		= getBaseURL();
+	var tracker		= routeSegmentId.split('_')[0];
+	var startdate	= segment.filtered_route[0]['time'];
+	var enddate		= segment.filtered_route[segment.filtered_route.length-1]['time'];
+	var url			= URLbase + POSITION_API_URL + '/' + tracker + '/' + startdate + '/' + enddate+ '/GPX';
+	
+	cell_total_distance_traveled.innerHTML = Math.round((segment.routeinfo.total_distance_traveled/1000)*100)/100;
+	cell_color.innerHTML = '<button type="button" class="btn btn-primary btn-sm" style="background-color: '+segment.color+'" id="'+routeSegmentId+'_color"></button>';
 	cell_id.innerHTML = routeSegmentId;
-	cell_time_travelled.innerHTML = segment.routeinfo.total_time;
-	cell_max_speed.innerHTML = segment.routeinfo.max_speed;
-	cell_avg_speed.innerHTML = segment.routeinfo.avg_speed;
-	cell_max_elev.innerHTML = segment.routeinfo.max_elevation;
-	cell_min_elev.innerHTML = segment.routeinfo.min_elevation;
+	cell_time_start.innerHTML = startdate;
+	cell_time_stop.innerHTML = enddate;
+	if (segment.routeinfo.total_time < 86400){
+		cell_time_traveled.innerHTML = moment().startOf('day').seconds(segment.routeinfo.total_time).format('HH:mm:ss'); //https://stackoverflow.com/questions/1322732/convert-seconds-to-hh-mm-ss-with-javascript
+	}
+	else{
+		cell_time_traveled.innerHTML = moment().startOf('year').seconds(segment.routeinfo.total_time).format('DDD HH:mm:ss'); //https://stackoverflow.com/questions/1322732/convert-seconds-to-hh-mm-ss-with-javascript
+	}
+	cell_max_speed.innerHTML = '<button type="button" class="btn btn-primary btn-sm" id="'+routeSegmentId+'_maxspeed" onclick="javascript:toggleSegmentMaxSpeed(\''+routeSegmentId+'\')">'+Math.round(segment.routeinfo.max_speed*3.6*100)/100+'</button>';
+	cell_avg_speed.innerHTML = Math.round(segment.routeinfo.avg_speed*3.6*100)/100; 
+	cell_max_elev.innerHTML = '<button type="button" class="btn btn-primary btn-sm" id="'+routeSegmentId+'_maxelev" onclick="javascript:toggleSegmentMaxElevation(\''+routeSegmentId+'\')">'+Math.round(segment.routeinfo.max_elevation*100)/100+'</button>';  
+	cell_min_elev.innerHTML = '<button type="button" class="btn btn-primary btn-sm" id="'+routeSegmentId+'_minelev" onclick="javascript:toggleSegmentMinElevation(\''+routeSegmentId+'\')">'+Math.round(segment.routeinfo.min_elevation*100)/100+'</button>'; 
 	cell_enable.innerHTML = '<div class="material-switch pull-right"><input checked id="'+routeSegmentId+'_checkbox" name="'+routeSegmentId+'_showOnMap" type="checkbox" onclick="javascript:checkRouteSegment(\''+routeSegmentId+'\')" /><label for="'+routeSegmentId+'_checkbox" class="label-success"></label></div>';
-	
-	var URLbase = getBaseURL();
-	var tracker = routeSegmentId.split('_')[0];
-	var startdate = segment.filtered_route[0]['time'];
-	var enddate = segment.filtered_route[segment.filtered_route.length-1]['time'];
-	var url = URLbase + POSITION_API_URL + '/' + tracker + '/' + startdate + '/' + enddate+ '/GPX';
-	
 	cell_save.innerHTML = '<a href="'+url+'" type="button" class="btn btn-primary btn-sm" id="'+routeSegmentId+'_download">GPX</button>';
 	
+	var segment_maxspeed_marker = new google.maps.Marker({
+						position: { lat : parseFloat(segment.filtered_route[segment.routeinfo.max_speed_point].lat), lng : parseFloat(segment.filtered_route[segment.routeinfo.max_speed_point].lng)},
+						map : null
+	});
+	
+	var segment_maxelev_marker = new google.maps.Marker({
+						position: { lat : parseFloat(segment.filtered_route[segment.routeinfo.max_elevation_point].lat), lng : parseFloat(segment.filtered_route[segment.routeinfo.max_elevation_point].lng)},
+						map : null
+	});
+	var segment_minelev_marker = new google.maps.Marker({
+						position: { lat : parseFloat(segment.filtered_route[segment.routeinfo.min_elevation_point].lat), lng : parseFloat(segment.filtered_route[segment.routeinfo.min_elevation_point].lng)},
+						map : null
+	});
+	
+	markersDict[routeSegmentId+'_maxspeed'] = segment_maxspeed_marker;
+	markersDict[routeSegmentId+'_maxelev'] = segment_maxelev_marker;
+	markersDict[routeSegmentId+'_minelev'] = segment_minelev_marker;
+}
+
+function toggleSegmentMinElevation(routeSegmentId){
+	
+	var marker = markersDict[routeSegmentId+'_minelev'];
+	if (marker.map == null){
+		markersDict[routeSegmentId+'_minelev'].setMap(map);
+	}
+	else{
+		markersDict[routeSegmentId+'_minelev'].setMap(null);
+	}
+}
+
+function toggleSegmentMaxElevation(routeSegmentId){
+	
+	var marker = markersDict[routeSegmentId+'_maxelev'];
+	if (marker.map == null){
+		markersDict[routeSegmentId+'_maxelev'].setMap(map);
+	}
+	else{
+		markersDict[routeSegmentId+'_maxelev'].setMap(null);
+	}
+}
+
+function toggleSegmentMaxSpeed(routeSegmentId){
+	
+	var marker = markersDict[routeSegmentId+'_maxspeed'];
+	if (marker.map == null){
+		markersDict[routeSegmentId+'_maxspeed'].setMap(map);
+	}
+	else{
+		markersDict[routeSegmentId+'_maxspeed'].setMap(null);
+	}
 }
 
 function plotRouteSegmentData(segment, routeSegmentId){
@@ -335,7 +400,8 @@ function plotRouteSegmentData(segment, routeSegmentId){
 function plotGPSdata(gpsdatalist) {
 	//alert(gpsdatalist);
 	
-	gpsdatalist.latest_position
+	
+	alert(gpsdatalist.latest_position.lat);
 
 	var pinColor = gpsdatalist.html_color
 	var pinImage = new google.maps.MarkerImage("http://www.googlemapsmarkers.com/v1/"+pinColor+"/");
