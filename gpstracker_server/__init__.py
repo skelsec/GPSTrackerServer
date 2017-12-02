@@ -81,6 +81,35 @@ api = Api(app)
 db = SQLAlchemy(app)
 Bootstrap(app)
 
+#setting up tables, users for first run
+if 'GPSTRACKERSERVER_FIRSTRUN' in os.environ:		
+	try:
+		with app.app_context():
+			from gpsDB import *
+			##########################
+			app.logger.info('Creating DB') 
+			db.create_all()
+			##########################
+			app.logger.info('Setting up administrator user')  
+			user_datastore.create_role(name='admin')
+			if app.config['DEFAULT_ADMIN_USERS'] is not None:
+				for email in app.config['DEFAULT_ADMIN_USERS']:
+					user_datastore.create_user(username=app.config['DEFAULT_ADMIN_USERS'][email]['username'], email=email,
+							password=encrypt_password(app.config['DEFAULT_ADMIN_USERS'][email]['password']), roles=app.config['DEFAULT_ADMIN_USERS'][email]['roles'])
+					user_datastore.commit()	
+			
+			if app.config['DEFAULT_USERS'] is not None:
+				for email in app.config['DEFAULT_USERS']:
+					user_datastore.create_user(username=app.config['DEFAULT_USERS'][email]['username'], email=email,
+							password=encrypt_password(app.config['DEFAULT_USERS'][email]['password']), confirmed_at=datetime.datetime.utcnow())
+					user_datastore.commit()	
+			
+			app.logger.info('Done setup!')    
+	except Exception as e:
+		print 'Exception when setting up adminn  users! ' + str(e)
+		app.logger.exception('a')
+
+
 from gpsDB import User, Role
 
 
@@ -103,32 +132,7 @@ app.register_blueprint(trackers, template_folder=app.config['TEMPLATES_DIR'])
 from .pages.route.controllers import route
 app.register_blueprint(route, template_folder=app.config['TEMPLATES_DIR'])
 	
-#setting up tables, users for first run
-if 'GPSTRACKERSERVER_FIRSTRUN' in os.environ:		
-	try:
-		from gpsDB import *
-		##########################
-		app.logger.info('Creating DB') 
-		db.create_all()
-		##########################
-		app.logger.info('Setting up administrator user')  
-		user_datastore.create_role(name='admin')
-		if app.config['DEFAULT_ADMIN_USERS'] is not None:
-			for email in app.config['DEFAULT_ADMIN_USERS']:
-				user_datastore.create_user(username=app.config['DEFAULT_ADMIN_USERS'][email]['username'], email=email,
-						password=encrypt_password(app.config['DEFAULT_ADMIN_USERS'][email]['password']), roles=app.config['DEFAULT_ADMIN_USERS'][email]['roles'])
-				user_datastore.commit()	
-		
-		if app.config['DEFAULT_USERS'] is not None:
-			for email in app.config['DEFAULT_USERS']:
-				user_datastore.create_user(username=app.config['DEFAULT_USERS'][email]['username'], email=email,
-						password=encrypt_password(app.config['DEFAULT_USERS'][email]['password']), confirmed_at=datetime.datetime.utcnow())
-				user_datastore.commit()	
-		
-		app.logger.info('Done setup!')    
-	except Exception as e:
-		print 'Exception when setting up adminn  users! ' + str(e)
-		app.logger.exception('a')
+
 
 
 
