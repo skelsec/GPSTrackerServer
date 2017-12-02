@@ -482,8 +482,18 @@ class GPSPosition(Resource):
 		#app.logger.warning(str(pprint.pformat(request.__dict__, depth=5)))
 		try:
 			#app.logger.debug('GPSPosition POST request in')
-			tracker_name = request.environ['SSL_CLIENT_S_DN_CN']
-			tracker_id = int(request.environ['SSL_CLIENT_S_DN_OU'])
+			cert_data = request.environ['REMOTE_USER']
+			#parse data
+			for el in cert.data.split('/'):
+				if el.find('=') == -1:
+					continue
+				tag, data = el.split('=')
+				if tag == 'CN':
+					tracker_name = data
+				elif tag == 'OU':
+					tracker_id = data
+				else:
+					continue
 			
 			#app.logger.debug('%s tracker_name: %s' %(route_name, tracker_name,))
 			#app.logger.debug('%s tracker_id: %s' %(route_name, tracker_id,))
