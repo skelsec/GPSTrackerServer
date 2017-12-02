@@ -3,3 +3,4 @@ recursive-include gpstracker_server/certs *
 recursive-include gpstracker_server/pages *
 recursive-include gpstracker_server/bin *
 recursive-include gpstracker_server/gpsutils *
+recursive-include gpstracker_server/trackerconfig *
