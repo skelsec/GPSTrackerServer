@@ -1,3 +1,5 @@
+import os
+import platform
 import logging
 import logging.handlers
 import jinja2
@@ -12,15 +14,33 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Resource, Api
 from flask_cors import CORS
 from flask_mail import Mail
-from pathlib2 import Path, PurePath
 import datetime
 from flask_assets import Environment
+from pathlib2 import Path, PurePath
 
-current_path = PurePath(__file__)
-basedir = PurePath(str(current_path.parents[1])) #if you move config.py to somehwere else then fix this!!
 
 app = Flask(__name__)
-app.config.from_pyfile(str(basedir.joinpath('config.py')))
+app.config.from_envvar('GPSTRACKERCONFIG')
+
+
+###### FOLDERS CONFIG
+current_path = PurePath(__file__)
+basedir = PurePath(str(current_path.parents[0]))
+
+###### API CONFIG
+if 'TRACKER_CONFIGURATION_TEMPLATE' not in app.config:
+	app.config['TRACKER_CONFIGURATION_TEMPLATE'] = str(basedir.joinpath('trackerconfig','config.json'))
+TEMPLATES_DIR = str(basedir.joinpath('templates'))
+SCRIPTS_DIR = str(basedir.joinpath('templates').joinpath('scripts'))
+CSS_DIR = str(basedir.joinpath('templates').joinpath('css'))
+
+app.config.update(
+    PLATFORM_OS     = platform.system(),
+    TEMPLATES_DIR   = TEMPLATES_DIR,
+    SCRIPTS_DIR     = SCRIPTS_DIR,
+    CSS_DIR         = CSS_DIR
+
+)
 
 # Assets
 
@@ -68,36 +88,26 @@ user_datastore = SQLAlchemyUserDatastore(db, User, Role)
 security = Security(app, user_datastore)
 
 
-from app.pages.public.controllers import public
+from .pages.public.controllers import public
 app.register_blueprint(public, template_folder=app.config['TEMPLATES_DIR'])
 
-from app.pages.users.controllers import users
+from .pages.users.controllers import users
 app.register_blueprint(users, template_folder=app.config['TEMPLATES_DIR'])
 
-from app.pages.admin.controllers import admin
+from .pages.admin.controllers import admin
 app.register_blueprint(admin, template_folder=app.config['TEMPLATES_DIR'])
 
-from app.pages.trackers.controllers import trackers
+from .pages.trackers.controllers import trackers
 app.register_blueprint(trackers, template_folder=app.config['TEMPLATES_DIR'])
 
-from app.pages.route.controllers import route
+from .pages.route.controllers import route
 app.register_blueprint(route, template_folder=app.config['TEMPLATES_DIR'])
 	
-@app.before_first_request
-def seed():
-	if not app.config['RESET_APP']:
-		return
-			
+#setting up tables, users for first run
+if 'GPSTRACKERSERVER_FIRSTRUN' in os.environ:		
 	try:
+		from gpsDB import *
 		##########################
-		app.logger.info('Deleting DB')
-		for table in reversed(db.metadata.sorted_tables):
-			try:
-				app.logger.info('Deleting table: '+str(table)) 
-				db.session.execute(table.delete())
-				db.session.commit()
-			except:
-				app.logger.exception('Could not delete table!')
 		app.logger.info('Creating DB') 
 		db.create_all()
 		##########################
@@ -124,7 +134,7 @@ def seed():
 
 
 from filters import *
-from gpsTrackerServer import *
+from .gpsTrackerServer import *
 
 api.add_resource(GPSTracker, '/gpstracker', '/gpstracker/<string:trackerid>')
 api.add_resource(GPSPosition, '/gpsposition','/gpsposition/<string:tracker_id>', '/gpsposition/<string:tracker_id>/<string:start_date>/<string:end_date>', '/gpsposition/<string:tracker_id>/<string:start_date>/<string:end_date>/<string:format>/')

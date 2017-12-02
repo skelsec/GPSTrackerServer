@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-from app import db, app
+from . import db, app
 from sqlalchemy.dialects.mysql import DOUBLE, DATETIME as MYSQL_DATETIME
 from flask_security import UserMixin, RoleMixin
 
 import datetime
 from dateutil.parser import parse
-from app.gpsutils.gpsutils import routefilter, GPSdistance
+from .gpsutils.gpsutils import routefilter, GPSdistance
 
 import pytz
 import decimal

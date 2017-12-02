@@ -1,7 +1,7 @@
 import datetime
 import math
 
-from app import app
+from . import app
 
 
 @app.template_filter('time_ago')

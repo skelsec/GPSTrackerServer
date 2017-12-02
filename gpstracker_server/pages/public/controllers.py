@@ -2,7 +2,7 @@ import datetime
 
 from flask import Blueprint, current_app
 
-from app.controllers import TemplateView
+from gpstracker_server.controllers import TemplateView
 
 public = Blueprint('public', __name__)
 

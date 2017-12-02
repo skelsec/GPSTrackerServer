@@ -2,7 +2,7 @@ from flask import Blueprint
 
 from flask_security import login_required
 
-from app.controllers import TemplateView
+from gpstracker_server.controllers import TemplateView
 
 route = Blueprint('route', __name__)
 

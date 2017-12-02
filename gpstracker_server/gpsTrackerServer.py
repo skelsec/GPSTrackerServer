@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from app import app, db
+from . import app, db
 from flask import request, send_from_directory, render_template, make_response
 from flask_restful import Resource, Api
 from flask_security import login_required, current_user
@@ -18,7 +18,7 @@ import pytz
 
 
 from OpenSSL import crypto
-from app.gpsutils.gpsutils import routefilter, GPSdistance
+from gpstracker_server.gpsutils.gpsutils import routefilter, GPSdistance
 from dateutil.parser import parse
 from dateutil.relativedelta import *
 from gpsDB import gpsposition, gpsjsondata, gpstracker as TrackerTable, User, Role, gpstrackercert
@@ -878,12 +878,6 @@ def after(response):
 	#app.logger.warning( response.get_data())
 	return response
 """
-
-# This is for gpstracker.js
-@app.route('/bootstrap/<path:path>', methods=['GET'])
-def serve_static(path):
-	app.logger.warning('Script called!' + str(path))
-	return send_from_directory(app.config['STATIC_DIR'], path)
 	
 # This is for gpstracker.js
 @app.route('/scritps/<path:path>', methods=['GET'])

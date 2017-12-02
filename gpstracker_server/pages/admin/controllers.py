@@ -1,7 +1,7 @@
 from flask import Blueprint
 from flask_security import roles_required, roles_accepted
 
-from app.controllers import TemplateView
+from gpstracker_server.controllers import TemplateView
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 
