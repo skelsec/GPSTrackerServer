@@ -101,7 +101,7 @@ if 'GPSTRACKERSERVER_FIRSTRUN' in os.environ:
 			user_datastore.create_role(name='admin')
 			if app.config['DEFAULT_ADMIN_USERS'] is not None:
 				for email in app.config['DEFAULT_ADMIN_USERS']:
-					user_datastore.create_user(username=app.config['DEFAULT_ADMIN_USERS'][email]['username'], email=email,
+					user_datastore.create_user(username=app.config['DEFAULT_ADMIN_USERS'][email]['username'], email=email, confirmed_at=datetime.datetime.utcnow(),
 							password=encrypt_password(app.config['DEFAULT_ADMIN_USERS'][email]['password']), roles=app.config['DEFAULT_ADMIN_USERS'][email]['roles'])
 					user_datastore.commit()	
 			
