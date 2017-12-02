@@ -484,7 +484,7 @@ class GPSPosition(Resource):
 			#app.logger.debug('GPSPosition POST request in')
 			cert_data = request.environ['REMOTE_USER']
 			#parse data
-			for el in cert.data.split('/'):
+			for el in cert_data.split('/'):
 				if el.find('=') == -1:
 					continue
 				tag, data = el.split('=')
