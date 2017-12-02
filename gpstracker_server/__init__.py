@@ -81,6 +81,13 @@ api = Api(app)
 db = SQLAlchemy(app)
 Bootstrap(app)
 
+
+from gpsDB import User, Role
+
+
+user_datastore = SQLAlchemyUserDatastore(db, User, Role)
+security = Security(app, user_datastore)
+
 #setting up tables, users for first run
 if 'GPSTRACKERSERVER_FIRSTRUN' in os.environ:		
 	try:
@@ -108,13 +115,6 @@ if 'GPSTRACKERSERVER_FIRSTRUN' in os.environ:
 	except Exception as e:
 		print 'Exception when setting up adminn  users! ' + str(e)
 		app.logger.exception('a')
-
-
-from gpsDB import User, Role
-
-
-user_datastore = SQLAlchemyUserDatastore(db, User, Role)
-security = Security(app, user_datastore)
 
 
 from .pages.public.controllers import public
