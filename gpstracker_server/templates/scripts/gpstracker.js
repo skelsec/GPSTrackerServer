@@ -400,8 +400,6 @@ function plotRouteSegmentData(segment, routeSegmentId){
 function plotGPSdata(gpsdatalist) {
 	//alert(gpsdatalist);
 	
-	
-	alert(gpsdatalist.latest_position.lat);
 
 	var pinColor = gpsdatalist.html_color
 	var pinImage = new google.maps.MarkerImage("http://www.googlemapsmarkers.com/v1/"+pinColor+"/");
